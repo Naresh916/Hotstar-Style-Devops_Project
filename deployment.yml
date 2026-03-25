@@ -1,32 +1,32 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: netflix-deployment
+  name: hotstar-deployment
   labels:
-    app: netflix
+    app: hotstar
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: netflix
+      app: hotstar
   template:
     metadata:
       labels:
-        app: netflix
+        app: hotstar
     spec:
       containers:
       - name: netflix
-        image: akshay23007/netflix:latest
+        image: naresh9163/hotstar:latest
         ports:
         - containerPort: 80
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: netflix-service
+  name: hotstar-service
 spec:
   selector:
-    app: netflix
+    app: hotstar
   type: LoadBalancer
   ports:
   - protocol: TCP
