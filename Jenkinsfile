@@ -43,7 +43,7 @@ pipeline {
                 script {
                     withDockerRegistry(credentialsId: 'docker', url: 'https://index.docker.io/v1/') {
                         sh 'docker build --build-arg TMDB_V3_API_KEY=68f46e27dfbb53cb1f47418ffb3fb8a1 -t hotstar .'
-                        sh 'docker tag netflix naresh9163/hotstar:latest'
+                        sh 'docker tag hotstar naresh9163/hotstar:latest'
                         sh 'docker push naresh9163/hotstar:latest'
                     }
                 }
