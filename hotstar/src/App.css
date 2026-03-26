@@ -1,44 +1,33 @@
-body {
-  background-color: #000;
-  color: #fff;
-  font-family: Arial, sans-serif;
+import React from "react";
+import Navbar from "./components/Navbar";
+import Banner from "./components/Banner";
+import Row from "./components/Row";
+import "./App.css";
+
+function App() {
+  const API_KEY = process.env.REACT_APP_TMDB;
+
+  return (
+    <div className="app">
+      <Navbar />
+      <Banner />
+
+      <Row
+        title="Popular Movies"
+        fetchUrl={`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}`}
+      />
+
+      <Row
+        title="Top Rated"
+        fetchUrl={`https://api.themoviedb.org/3/movie/top_rated?api_key=${API_KEY}`}
+      />
+
+      <Row
+        title="Upcoming"
+        fetchUrl={`https://api.themoviedb.org/3/movie/upcoming?api_key=${API_KEY}`}
+      />
+    </div>
+  );
 }
 
-.container {
-  padding: 20px;
-}
-
-.title {
-  font-size: 40px;
-  margin-bottom: 10px;
-}
-
-.subtitle {
-  font-size: 24px;
-  margin-bottom: 20px;
-}
-
-.movie-grid {
-  display: grid;
-  gap: 20px;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-}
-
-.movie-card {
-  text-align: center;
-  transition: transform 0.3s;
-}
-
-.movie-card:hover {
-  transform: scale(1.1);
-}
-
-.poster {
-  width: 100%;
-  border-radius: 10px;
-}
-
-.movie-title {
-  margin-top: 10px;
-  font-size: 14px;
-}
+export default App;
