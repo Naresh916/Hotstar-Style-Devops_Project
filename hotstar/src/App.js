@@ -1,38 +1,31 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import React from "react";
+import Navbar from "./components/Navbar";
+import Banner from "./components/Banner";
+import Row from "./components/Row";
 import "./App.css";
 
 function App() {
-  const [movies, setMovies] = useState([]);
-
-  useEffect(() => {
-    const API_KEY = process.env.REACT_APP_TMDB;
-
-    axios
-      .get(
-        `https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}`
-      )
-      .then((res) => setMovies(res.data.results))
-      .catch((err) => console.error(err));
-  }, []);
+  const API_KEY = process.env.REACT_APP_TMDB;
 
   return (
-    <div className="container">
-      <h1 className="title">Hotstar Clone</h1>
-      <h2 className="subtitle">Popular Movies</h2>
+    <div className="app">
+      <Navbar />
+      <Banner />
 
-      <div className="movie-grid">
-        {movies.map((movie) => (
-          <div className="movie-card" key={movie.id}>
-            <img
-              className="poster"
-              src={`https://image.tmdb.org/t/p/w300${movie.poster_path}`}
-              alt={movie.title}
-            />
-            <p className="movie-title">{movie.title}</p>
-          </div>
-        ))}
-      </div>
+      <Row
+        title="Popular Movies"
+        fetchUrl={`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}`}
+      />
+
+      <Row
+        title="Top Rated"
+        fetchUrl={`https://api.themoviedb.org/3/movie/top_rated?api_key=${API_KEY}`}
+      />
+
+      <Row
+        title="Upcoming"
+        fetchUrl={`https://api.themoviedb.org/3/movie/upcoming?api_key=${API_KEY}`}
+      />
     </div>
   );
 }
