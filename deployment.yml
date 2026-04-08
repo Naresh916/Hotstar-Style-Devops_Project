@@ -1,7 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: hotstar-deployment
+  name: hotstar
+  namespace: default
   labels:
     app: hotstar
 spec:
@@ -19,11 +20,19 @@ spec:
         image: naresh9163/hotstar:latest
         ports:
         - containerPort: 80
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: hotstar-service
+  namespace: default
 spec:
   selector:
     app: hotstar
