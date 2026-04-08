@@ -1,23 +1,27 @@
-# Stage 1: Build React App
+# Stage 1: Build
 FROM node:18 AS builder
-
 WORKDIR /app
-
-# Accept TMDB key from Jenkins
 ARG REACT_APP_TMDB
 ENV REACT_APP_TMDB=$REACT_APP_TMDB
-
 COPY package.json package-lock.json ./
 RUN npm install
-
-# COPY AFTER setting ENV so build picks variable
 COPY . .
-
-RUN echo "REACT_APP_TMDB is: $REACT_APP_TMDB"
 RUN npm run build
 
-# Stage 2: Serve with NGINX
+# Stage 2: Production (Secured)
 FROM nginx:alpine
+
+# RESOLUTION: Create non-root user to pass Quality Gate
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Set permissions for Nginx directories
+RUN touch /var/run/nginx.pid && \
+    chown -R appuser:appgroup /var/run/nginx.pid /var/cache/nginx /var/log/nginx /etc/nginx
+
 COPY --from=builder /app/build /usr/share/nginx/html
+
+# Switch to the non-root user
+USER appuser
+
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
