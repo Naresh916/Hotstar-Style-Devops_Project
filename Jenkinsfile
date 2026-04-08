@@ -13,18 +13,23 @@ pipeline {
     }
 
     environment {
-        SCANNER_HOME = tool 'sonar-scanner'
+        SCANNER_HOME   = tool 'sonar-scanner'
+        DOCKERHUB_USER = 'naresh9163'
+        IMAGE_NAME     = "${DOCKERHUB_USER}/hotstar"
+        EKS_REGION     = 'us-east-1'
+        EKS_CLUSTER    = 'cloudhotstar'
     }
 
     stages {
 
         stage('Clean Workspace') {
-            steps { cleanWs() }
+            steps {
+                cleanWs()
+            }
         }
 
         stage('Checkout from Git') {
             steps {
-                echo "Cloning repo..."
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: '*/main']],
@@ -36,53 +41,112 @@ pipeline {
             }
         }
 
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    sh """
+                        ${SCANNER_HOME}/bin/sonar-scanner \
+                        -Dsonar.projectName=hotstar \
+                        -Dsonar.projectKey=hotstar
+                    """
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 1, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: false
+                }
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
-                sh '''
-                    echo "WORKSPACE CHECK:"
-                    pwd
-                    ls -la
-
-                    echo "Installing npm deps..."
-                    cd hotstar
-                    npm install
-                '''
+                dir('hotstar') {
+                    sh '''
+                        pwd
+                        ls -la
+                        npm install
+                    '''
+                }
             }
         }
+
         stage('TRIVY FS Scan') {
-            steps { sh 'trivy fs . > trivyfs.txt' }
+            steps {
+                dir('hotstar') {
+                    sh 'trivy fs . > trivyfs.txt'
+                }
+            }
         }
+
         stage('Docker Build & Push') {
             steps {
-                script {
+                dir('hotstar') {
                     withDockerRegistry(credentialsId: 'docker', url: 'https://index.docker.io/v1/') {
-                        sh 'docker build --no-cache --build-arg REACT_APP_TMDB=68f46e27dfbb53cb1f47418ffb3fb8a1 -t hotstar hotstar/'
-                        sh 'docker tag hotstar yellineedidevops/hotstar:latest'
-                        sh 'docker push yellineedidevops/hotstar:latest'
+                        withCredentials([string(credentialsId: 'tmdb-api-key', variable: 'TMDB_KEY')]) {
+                            sh """
+                                docker system prune -f
+                                docker build --no-cache \
+                                  --build-arg REACT_APP_TMDB=${TMDB_KEY} \
+                                  -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                                docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+                                docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                                docker push ${IMAGE_NAME}:latest
+                            """
+                        }
                     }
                 }
             }
         }
+
         stage('TRIVY Image Scan') {
-            steps { sh 'trivy image yellineedidevops/hotstar:latest > trivyimage.txt' }
+            steps {
+                sh "trivy image ${IMAGE_NAME}:${BUILD_NUMBER} > trivyimage.txt"
+            }
         }
+
         stage('Deploy to EKS') {
             steps {
-                script {
-                    withCredentials([
-                        string(credentialsId: 'aws_access', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'aws_secret', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        sh '''
-                            export AWS_DEFAULT_REGION=us-east-1
-                            aws eks update-kubeconfig --region us-east-1 --name cloudnetflix
-                            kubectl apply -f deployment.yml
-                            kubectl get pods
-                            kubectl get svc
-                        '''
-                    }
+                withCredentials([
+                    string(credentialsId: 'aws-access', variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'aws-secret', variable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
+                    sh """
+                        export AWS_DEFAULT_REGION=${EKS_REGION}
+                        aws eks update-kubeconfig --region ${EKS_REGION} --name ${EKS_CLUSTER}
+                        sed -i "s|${IMAGE_NAME}:[^ ]*|${IMAGE_NAME}:${BUILD_NUMBER}|g" deployment.yml
+                        kubectl apply -f deployment.yml
+                        kubectl rollout status deployment/hotstar
+                        kubectl get pods
+                        kubectl get svc
+                    """
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'hotstar/trivyfs.txt, trivyimage.txt', allowEmptyArchive: true
+            echo 'Pipeline execution complete.'
+        }
+
+        success {
+            echo "✅ Pipeline succeeded! Image ${IMAGE_NAME}:${BUILD_NUMBER} deployed."
+        }
+
+        failure {
+            emailext(
+                subject: "FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Check Jenkins logs: ${env.BUILD_URL}",
+                to: 'nareshtullibilli666@gmail.com'
+            )
+        }
+
+        cleanup {
+            sh "docker rmi ${IMAGE_NAME}:${BUILD_NUMBER} || true"
         }
     }
 }
