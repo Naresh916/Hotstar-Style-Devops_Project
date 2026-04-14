@@ -84,7 +84,7 @@ function Banner({ apiKey, onMovieClick }) {
       <div className="banner-dots">
         {movies.map((movie, i) => (
           <div
-            key={i}
+            key={movie.id}
             className={`banner-dot-btn ${i === current ? "active" : ""}`}
             onClick={() => setCurrent(i)}
           />
